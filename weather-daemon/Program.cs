@@ -5,12 +5,13 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using System.Text.Json;
 using System.Net.Http.Headers;
+using System.Net.Mime;
 
 namespace weather_daemon
 {
-    class Program
+    internal class Program
     {
-        static void Main(string[] args)
+        private static void Main(string[] args)
         {
             try
             {
@@ -26,9 +27,9 @@ namespace weather_daemon
 
         private static async Task RunAsync()
         {
-            AuthenticationConfig config = AuthenticationConfig.ReadFromJsonFile("appsettings.json");
+            var config = AuthenticationConfig.ReadFromJsonFile("appsettings.json");
 
-            IConfidentialClientApplication app =
+            var app =
               ConfidentialClientApplicationBuilder.Create(config.ClientId)
                   .WithClientSecret(config.ClientSecret)
                   .WithAuthority(new Uri(config.Authority))
@@ -37,7 +38,7 @@ namespace weather_daemon
             // With client credentials flows the scopes is ALWAYS of the shape "resource/.default", as the
             // application permissions need to be set statically (in the portal or by PowerShell), and then granted by
             // a tenant administrator
-            string[] scopes = new string[] { config.ApiScope };
+            var scopes = new string[] { config.ApiScope };
 
             AuthenticationResult result = null;
             try
@@ -60,16 +61,16 @@ namespace weather_daemon
             {
                 var httpClient = new HttpClient();
                 var defaultRequestHeaders = httpClient.DefaultRequestHeaders;
-                if (defaultRequestHeaders.Accept == null || !defaultRequestHeaders.Accept.Any(m => m.MediaType == "application/json"))
+                if (defaultRequestHeaders.Accept.All(m => m.MediaType != MediaTypeNames.Application.Json))
                 {
-                    httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                    httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue(MediaTypeNames.Application.Json));
                 }
                 defaultRequestHeaders.Authorization = new AuthenticationHeaderValue("bearer", result.AccessToken);
 
-                HttpResponseMessage response = await httpClient.GetAsync($"{config.ApiBaseAddress}/WeatherForecast");
+                var response = await httpClient.GetAsync($"{config.ApiBaseAddress}/WeatherForecast");
                 if (response.IsSuccessStatusCode)
                 {
-                    string json = await response.Content.ReadAsStringAsync();
+                    var json = await response.Content.ReadAsStringAsync();
                     var results = JsonDocument.Parse(json);
                     Console.ForegroundColor = ConsoleColor.Gray;
                     Display(results.RootElement.EnumerateArray());
@@ -78,7 +79,7 @@ namespace weather_daemon
                 {
                     Console.ForegroundColor = ConsoleColor.Red;
                     Console.WriteLine($"Failed to call the Web Api: {response.StatusCode}");
-                    string content = await response.Content.ReadAsStringAsync();
+                    var content = await response.Content.ReadAsStringAsync();
 
                     // Note that if you got reponse.Code == 403 and reponse.content.code == "Authorization_RequestDenied"
                     // this is because the tenant admin as not granted consent for the application to call the Web API
@@ -93,29 +94,29 @@ namespace weather_daemon
         {
             Console.WriteLine("Web Api result: \n");
 
-            foreach (JsonElement element in results)
+            foreach (var element in results)
             {
                 var date = DateTime.MinValue;
                 var temperatureC = 0;
                 var temperatureF = 0;
                 var summary = "";
 
-                if (element.TryGetProperty("date", out JsonElement dateElement))
+                if (element.TryGetProperty("date", out var dateElement))
                 {
                     date = dateElement.GetDateTime();
                 }
 
-                if (element.TryGetProperty("temperatureC", out JsonElement temperatureCElement))
+                if (element.TryGetProperty("temperatureC", out var temperatureCElement))
                 {
                     temperatureC = temperatureCElement.GetInt32();
                 }
 
-                if (element.TryGetProperty("temperatureF", out JsonElement temperatureFElement))
+                if (element.TryGetProperty("temperatureF", out var temperatureFElement))
                 {
                     temperatureF = temperatureFElement.GetInt32();
                 }
 
-                if (element.TryGetProperty("summary", out JsonElement summaryElement))
+                if (element.TryGetProperty("summary", out var summaryElement))
                 {
                     summary = summaryElement.GetString();
                 }
