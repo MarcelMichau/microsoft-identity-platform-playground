@@ -1,8 +1,11 @@
-﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
+using System.Threading.Tasks;
+using IdentityModel.Client;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Identity.Web;
 
 namespace WebApiAuthPlayground.Controllers
@@ -12,21 +15,32 @@ namespace WebApiAuthPlayground.Controllers
     [Route("[controller]")]
     public class WeatherForecastController : ControllerBase
     {
+        private static readonly string[] ScopesToAccessDownstreamApi = { "api://57ffc7f3-78f6-41ee-ba0b-c7592a21502d/Summary.Read" };
+
+        private readonly ITokenAcquisition _tokenAcquisition;
+        private readonly IHttpClientFactory _clientFactory;
+
+        public WeatherForecastController(ITokenAcquisition tokenAcquisition, IHttpClientFactory clientFactory)
+        {
+            _tokenAcquisition = tokenAcquisition;
+            _clientFactory = clientFactory;
+        }
+
         private static readonly string[] Summaries = {
             "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
         };
 
         [HttpGet]
-        [Authorize(Roles = AppRoles.ReadWeather)]
-        [AuthorizeForScopes(Scopes = new[] { "Api.ReadWrite" })]
+        [Authorize(Policy = "RequireAnyRole")]
+        [AuthorizeForScopes(Scopes = new[] { DelegatedPermissions.ReadBasicWeather })]
         public IEnumerable<WeatherForecast> Get()
         {
             return GenerateForecasts(5);
         }
 
         [HttpGet("lots")]
-        [Authorize(Roles = AppRoles.ReadLotsOfWeather)]
-        [AuthorizeForScopes(Scopes = new []{ "Api.ReadWrite" })]
+        [Authorize(Policy = "RequireAnyRole")]
+        [AuthorizeForScopes(Scopes = new[] { DelegatedPermissions.ReadLotsOfWeather })]
         public IEnumerable<WeatherForecast> GetLots()
         {
             return GenerateForecasts(20);
@@ -36,12 +50,34 @@ namespace WebApiAuthPlayground.Controllers
         {
             var rng = new Random();
             return Enumerable.Range(1, count).Select(index => new WeatherForecast
-                {
-                    Date = DateTime.Now.AddDays(index),
-                    TemperatureC = rng.Next(-20, 55),
-                    Summary = Summaries[rng.Next(Summaries.Length)]
-                })
+            {
+                Date = DateTime.Now.AddDays(index),
+                TemperatureC = rng.Next(-20, 55),
+                Summary = Summaries[rng.Next(Summaries.Length)]
+            })
                 .ToArray();
+        }
+
+        [HttpGet("special")]
+        [AuthorizeForScopes(Scopes = new[] { DelegatedPermissions.ReadSpecialWeather })]
+        public async Task<IEnumerable<WeatherForecast>> GetSpecial()
+        {
+            var accessToken = await _tokenAcquisition.GetAccessTokenForUserAsync(ScopesToAccessDownstreamApi);
+
+            var client = _clientFactory.CreateClient();
+
+            client.SetBearerToken(accessToken);
+
+            var specialSummary = await client.GetStringAsync("https://localhost:6001/Summary");
+
+            var forecasts = GenerateForecasts(5).ToList();
+
+            foreach (var forecast in forecasts)
+            {
+                forecast.Summary = specialSummary;
+            }
+
+            return forecasts;
         }
     }
 }

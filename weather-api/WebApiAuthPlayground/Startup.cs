@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
@@ -13,6 +12,7 @@ namespace WebApiAuthPlayground
 {
     internal static class AppRoles
     {
+        public const string ApiFullAccess = "Api.ReadWrite.All";
         public const string ReadWeather = "Weather.Read";
         public const string ReadLotsOfWeather = "Weather.Lots.Read";
 
@@ -25,7 +25,9 @@ namespace WebApiAuthPlayground
 
     internal static class DelegatedPermissions
     {
-        public const string ApiAccess = "Api.ReadWrite";
+        public const string ReadBasicWeather = "Weather.Read.Basic";
+        public const string ReadLotsOfWeather = "Weather.Read.Lots";
+        public const string ReadSpecialWeather = "Weather.Read.Special";
 
         public static string[] All => typeof(DelegatedPermissions)
             .GetFields()
@@ -46,7 +48,18 @@ namespace WebApiAuthPlayground
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddMicrosoftIdentityWebApiAuthentication(Configuration);
+            services.AddMicrosoftIdentityWebApiAuthentication(Configuration)
+                    .EnableTokenAcquisitionToCallDownstreamApi()
+                    .AddDownstreamWebApi("SummaryApi", Configuration.GetSection("SummaryApi"))
+                        .AddInMemoryTokenCaches();
+
+            services.AddAuthorization(options =>
+            {
+                options.AddPolicy("RequireAnyRole",
+                    policy => policy.RequireRole(AppRoles.All));
+            });
+
+            services.AddHttpClient();
 
             services.AddControllers();
             services.AddSwaggerGen(c =>

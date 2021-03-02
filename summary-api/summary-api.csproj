@@ -2,14 +2,14 @@
 
   <PropertyGroup>
     <TargetFramework>net5.0</TargetFramework>
-    <UserSecretsId>aspnet-WebApiAuthPlayground-2C9B1D8A-7368-40B5-9963-6C8CE48F9F6A</UserSecretsId>
+    <UserSecretsId>aspnet-summary_api-40CA3991-3191-44C1-8938-B1105C2D9A4F</UserSecretsId>
+    <RootNamespace>summary_api</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="IdentityModel" Version="5.0.1" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="5.0.3" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="5.0.3" />
-    <PackageReference Include="Microsoft.Identity.Web" Version="1.7.0" />
+    <PackageReference Include="Microsoft.Identity.Web" Version="1.7.0"/>
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.0.7" />
   </ItemGroup>
 
