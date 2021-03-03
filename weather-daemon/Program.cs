@@ -7,15 +7,75 @@ using System.Text.Json;
 using System.Net.Http.Headers;
 using System.Net.Mime;
 
-namespace weather_daemon
+namespace WeatherDaemon
 {
     internal class Program
     {
-        private static void Main(string[] args)
+        private static async Task Main(string[] args)
         {
             try
             {
-                RunAsync().GetAwaiter().GetResult();
+                var config = AuthenticationConfig.ReadFromJsonFile("appsettings.json");
+
+                var app =
+                  ConfidentialClientApplicationBuilder.Create(config.ClientId)
+                      .WithClientSecret(config.ClientSecret)
+                      .WithAuthority(new Uri(config.Authority))
+                      .Build();
+
+                // With client credentials flows the scopes is ALWAYS of the shape "resource/.default", as the
+                // application permissions need to be set statically (in the portal or by PowerShell), and then granted by
+                // a tenant administrator
+                var scopes = new[] { config.ApiScope };
+
+                AuthenticationResult result = null;
+                try
+                {
+                    result = await app.AcquireTokenForClient(scopes).ExecuteAsync();
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine("Token Acquired \n");
+                    Console.ResetColor();
+                }
+                catch (MsalServiceException ex) when (ex.Message.Contains("AADSTS70011"))
+                {
+                    // Invalid scope. The scope has to be of the form "https://resourceurl/.default"
+                    // Mitigation: change the scope to be as expected
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("Scope provided is not supported");
+                    Console.ResetColor();
+                }
+
+                if (result != null)
+                {
+                    var httpClient = new HttpClient();
+                    var defaultRequestHeaders = httpClient.DefaultRequestHeaders;
+                    if (defaultRequestHeaders.Accept.All(m => m.MediaType != MediaTypeNames.Application.Json))
+                    {
+                        httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue(MediaTypeNames.Application.Json));
+                    }
+                    defaultRequestHeaders.Authorization = new AuthenticationHeaderValue("bearer", result.AccessToken);
+
+                    var response = await httpClient.GetAsync($"{config.ApiBaseAddress}/WeatherForecast");
+                    if (response.IsSuccessStatusCode)
+                    {
+                        var json = await response.Content.ReadAsStringAsync();
+                        var results = JsonDocument.Parse(json);
+                        Console.ForegroundColor = ConsoleColor.Gray;
+                        Display(results.RootElement.EnumerateArray());
+                    }
+                    else
+                    {
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine($"Failed to call the Weather Api: {response.StatusCode}");
+                        var content = await response.Content.ReadAsStringAsync();
+
+                        // Note that if you got response.Code == 403 and response.content.code == "Authorization_RequestDenied"
+                        // this is because the tenant admin as not granted consent for the application to call the Web API
+                        Console.WriteLine($"Content: {content}");
+                    }
+                    Console.ResetColor();
+
+                }
             }
             catch (Exception ex)
             {
@@ -25,74 +85,9 @@ namespace weather_daemon
             }
         }
 
-        private static async Task RunAsync()
-        {
-            var config = AuthenticationConfig.ReadFromJsonFile("appsettings.json");
-
-            var app =
-              ConfidentialClientApplicationBuilder.Create(config.ClientId)
-                  .WithClientSecret(config.ClientSecret)
-                  .WithAuthority(new Uri(config.Authority))
-                  .Build();
-
-            // With client credentials flows the scopes is ALWAYS of the shape "resource/.default", as the
-            // application permissions need to be set statically (in the portal or by PowerShell), and then granted by
-            // a tenant administrator
-            var scopes = new string[] { config.ApiScope };
-
-            AuthenticationResult result = null;
-            try
-            {
-                result = await app.AcquireTokenForClient(scopes).ExecuteAsync();
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine("Token acquired \n");
-                Console.ResetColor();
-            }
-            catch (MsalServiceException ex) when (ex.Message.Contains("AADSTS70011"))
-            {
-                // Invalid scope. The scope has to be of the form "https://resourceurl/.default"
-                // Mitigation: change the scope to be as expected
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("Scope provided is not supported");
-                Console.ResetColor();
-            }
-
-            if (result != null)
-            {
-                var httpClient = new HttpClient();
-                var defaultRequestHeaders = httpClient.DefaultRequestHeaders;
-                if (defaultRequestHeaders.Accept.All(m => m.MediaType != MediaTypeNames.Application.Json))
-                {
-                    httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue(MediaTypeNames.Application.Json));
-                }
-                defaultRequestHeaders.Authorization = new AuthenticationHeaderValue("bearer", result.AccessToken);
-
-                var response = await httpClient.GetAsync($"{config.ApiBaseAddress}/WeatherForecast");
-                if (response.IsSuccessStatusCode)
-                {
-                    var json = await response.Content.ReadAsStringAsync();
-                    var results = JsonDocument.Parse(json);
-                    Console.ForegroundColor = ConsoleColor.Gray;
-                    Display(results.RootElement.EnumerateArray());
-                }
-                else
-                {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine($"Failed to call the Web Api: {response.StatusCode}");
-                    var content = await response.Content.ReadAsStringAsync();
-
-                    // Note that if you got reponse.Code == 403 and reponse.content.code == "Authorization_RequestDenied"
-                    // this is because the tenant admin as not granted consent for the application to call the Web API
-                    Console.WriteLine($"Content: {content}");
-                }
-                Console.ResetColor();
-
-            }
-        }
-
         private static void Display(JsonElement.ArrayEnumerator results)
         {
-            Console.WriteLine("Web Api result: \n");
+            Console.WriteLine("Weather Api result: \n");
 
             foreach (var element in results)
             {

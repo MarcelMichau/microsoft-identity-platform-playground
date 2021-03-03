@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.OpenApi.Models;
 using Swashbuckle.AspNetCore.SwaggerGen;
 
-namespace WeatherApi
+namespace SummaryApi
 {
     internal sealed class AuthorizeOperationFilter : IOperationFilter
     {

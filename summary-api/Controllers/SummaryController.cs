@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Identity.Web;
 
-namespace summary_api.Controllers
+namespace SummaryApi.Controllers
 {
     [Authorize]
     [ApiController]
@@ -10,7 +10,7 @@ namespace summary_api.Controllers
     public class SummaryController : ControllerBase
     {
         [HttpGet]
-        [AuthorizeForScopes(Scopes = new[] { "Summary.Read" })]
+        [AuthorizeForScopes(Scopes = new[] { DelegatedPermissions.ReadSummary })]
         public string Get()
         {
             return "Meh";

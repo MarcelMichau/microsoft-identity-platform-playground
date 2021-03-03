@@ -3,7 +3,7 @@
   <PropertyGroup>
     <TargetFramework>net5.0</TargetFramework>
     <UserSecretsId>aspnet-summary_api-40CA3991-3191-44C1-8938-B1105C2D9A4F</UserSecretsId>
-    <RootNamespace>summary_api</RootNamespace>
+    <RootNamespace>SummaryApi</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>

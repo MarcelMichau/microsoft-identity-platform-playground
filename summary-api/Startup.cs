@@ -1,3 +1,5 @@
+using System;
+using System.Linq;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -7,10 +9,22 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.OpenApi.Models;
 
-namespace summary_api
+namespace SummaryApi
 {
+    internal static class DelegatedPermissions
+    {
+        public const string ReadSummary = "Summary.Read";
+
+        public static string[] All => typeof(DelegatedPermissions)
+            .GetFields()
+            .Where(f => f.Name != nameof(All))
+            .Select(f => f.GetValue(null) as string)
+            .ToArray();
+    }
+
     public class Startup
     {
+
         public Startup(IConfiguration configuration)
         {
             Configuration = configuration;
@@ -27,7 +41,37 @@ namespace summary_api
             services.AddControllers();
             services.AddSwaggerGen(c =>
             {
-                c.SwaggerDoc("v1", new OpenApiInfo { Title = "summary_api", Version = "v1" });
+                c.OperationFilter<AuthorizeOperationFilter>();
+
+                c.SwaggerDoc("v1", new OpenApiInfo { Title = "SummaryApi", Version = "v1" });
+
+                var azureAdTenantId = Configuration.GetValue<string>("AzureAd:TenantId");
+
+                var configurationUrl =
+                    new Uri(
+                        $"https://login.microsoftonline.com/{azureAdTenantId}/v2.0/.well-known/openid-configuration");
+                var authorizationUrl =
+                    new Uri(
+                        $"https://login.microsoftonline.com/{azureAdTenantId}/oauth2/v2.0/authorize");
+                var tokenUrl =
+                    new Uri(
+                        $"https://login.microsoftonline.com/{azureAdTenantId}/oauth2/v2.0/token");
+
+                c.AddSecurityDefinition("OAuth2", new OpenApiSecurityScheme
+                {
+                    Description = "Azure AD Authentication",
+                    OpenIdConnectUrl = configurationUrl,
+                    Type = SecuritySchemeType.OAuth2,
+                    Flows = new OpenApiOAuthFlows
+                    {
+                        AuthorizationCode = new OpenApiOAuthFlow
+                        {
+                            AuthorizationUrl = authorizationUrl,
+                            TokenUrl = tokenUrl,
+                            Scopes = DelegatedPermissions.All.ToDictionary(p => $"api://{Configuration.GetValue<string>("AzureAd:ClientId")}/{p}")
+                        }
+                    }
+                });
             });
         }
 

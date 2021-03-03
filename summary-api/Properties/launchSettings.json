@@ -17,7 +17,7 @@
         "ASPNETCORE_ENVIRONMENT": "Development"
       }
     },
-    "summary_api": {
+    "SummaryApi": {
       "commandName": "Project",
       "dotnetRunMessages": "true",
       "launchBrowser": true,

@@ -17,7 +17,7 @@
         "ASPNETCORE_ENVIRONMENT": "Development"
       }
     },
-    "WebApiAuthPlayground": {
+    "WeatherApi": {
       "commandName": "Project",
       "dotnetRunMessages": "true",
       "launchBrowser": true,

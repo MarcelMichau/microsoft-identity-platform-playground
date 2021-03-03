@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Identity.Web;
 
-namespace WebApiAuthPlayground.Controllers
+namespace WeatherApi.Controllers
 {
     [Authorize]
     [ApiController]
@@ -65,7 +65,6 @@ namespace WebApiAuthPlayground.Controllers
             var accessToken = await _tokenAcquisition.GetAccessTokenForUserAsync(ScopesToAccessDownstreamApi);
 
             var client = _clientFactory.CreateClient();
-
             client.SetBearerToken(accessToken);
 
             var specialSummary = await client.GetStringAsync("https://localhost:6001/Summary");

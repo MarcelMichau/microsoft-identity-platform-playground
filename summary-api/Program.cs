@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Hosting;
 
-namespace summary_api
+namespace SummaryApi
 {
     public class Program
     {

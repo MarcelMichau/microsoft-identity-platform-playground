@@ -1,6 +1,6 @@
 using System;
 
-namespace WebApiAuthPlayground
+namespace WeatherApi
 {
     public class WeatherForecast
     {

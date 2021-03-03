@@ -1,3 +1,5 @@
+using System;
+using System.Linq;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
@@ -5,10 +7,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Identity.Web;
 using Microsoft.OpenApi.Models;
-using System;
-using System.Linq;
 
-namespace WebApiAuthPlayground
+namespace WeatherApi
 {
     internal static class AppRoles
     {
@@ -66,7 +66,7 @@ namespace WebApiAuthPlayground
             {
                 c.OperationFilter<AuthorizeOperationFilter>();
 
-                c.SwaggerDoc("v1", new OpenApiInfo { Title = "WebApiAuthPlayground", Version = "v1" });
+                c.SwaggerDoc("v1", new OpenApiInfo { Title = "WeatherApi", Version = "v1" });
 
                 var azureAdTenantId = Configuration.GetValue<string>("AzureAd:TenantId");
 
