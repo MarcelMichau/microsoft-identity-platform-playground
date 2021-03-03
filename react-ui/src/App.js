@@ -15,7 +15,7 @@ function App() {
 	const account = useAccount(accounts[0] || {});
 
 	return (
-		<React.Fragment>
+		<>
 			<p>Anyone can see this paragraph.</p>
 			<AuthenticatedTemplate>
 				<p>There are currently: {accounts.length} account(s) signed in.</p>
@@ -32,7 +32,7 @@ function App() {
 			<UnauthenticatedTemplate>
 				<p>No users are signed in!</p>
 			</UnauthenticatedTemplate>
-		</React.Fragment>
+		</>
 	);
 }
 

@@ -5,9 +5,8 @@ import App from './App';
 import reportWebVitals from './reportWebVitals';
 
 import { MsalProvider } from '@azure/msal-react';
-import { Configuration, PublicClientApplication } from '@azure/msal-browser';
+import { PublicClientApplication } from '@azure/msal-browser';
 
-// MSAL configuration
 const configuration = {
 	auth: {
 		clientId: '2aedb97c-4831-4e06-936d-b79358d576f8',

@@ -39,7 +39,7 @@ namespace WeatherApi.Controllers
         }
 
         [HttpGet("lots")]
-        [Authorize(Policy = "RequireAnyRole")]
+        [Authorize(Roles = AppRoles.ReadLotsOfWeather)]
         [AuthorizeForScopes(Scopes = new[] { DelegatedPermissions.ReadLotsOfWeather })]
         public IEnumerable<WeatherForecast> GetLots()
         {
