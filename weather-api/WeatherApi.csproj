@@ -1,16 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
-
   <PropertyGroup>
-    <TargetFramework>net5.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <UserSecretsId>aspnet-WebApiAuthPlayground-2C9B1D8A-7368-40B5-9963-6C8CE48F9F6A</UserSecretsId>
   </PropertyGroup>
-
   <ItemGroup>
-    <PackageReference Include="IdentityModel" Version="5.0.1" />
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="5.0.3" />
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="5.0.3" />
-    <PackageReference Include="Microsoft.Identity.Web" Version="1.7.0" />
-    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.0.7" />
+    <PackageReference Include="IdentityModel" Version="7.0.0" />
+    <PackageReference Include="Microsoft.Identity.Web" Version="2.18.0" />
+    <PackageReference Include="Microsoft.Identity.Web.DownstreamApi" Version="2.18.0" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.4" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="8.0.4" />
   </ItemGroup>
-
 </Project>

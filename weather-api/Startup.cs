@@ -8,134 +8,128 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Identity.Web;
 using Microsoft.OpenApi.Models;
 
-namespace WeatherApi
+namespace WeatherApi;
+
+internal static class AppRoles
 {
-    internal static class AppRoles
+    public const string ApiFullAccess = "Api.ReadWrite.All";
+    public const string ReadWeather = "Weather.Read";
+    public const string ReadLotsOfWeather = "Weather.Lots.Read";
+
+    public static string[] All => typeof(AppRoles)
+        .GetFields()
+        .Where(f => f.Name != nameof(All))
+        .Select(f => f.GetValue(null) as string)
+        .ToArray();
+}
+
+internal static class DelegatedPermissions
+{
+    public const string ReadBasicWeather = "Weather.Read.Basic";
+    public const string ReadLotsOfWeather = "Weather.Read.Lots";
+    public const string ReadSpecialWeather = "Weather.Read.Special";
+
+    public static string[] All => typeof(DelegatedPermissions)
+        .GetFields()
+        .Where(f => f.Name != nameof(All))
+        .Select(f => f.GetValue(null) as string)
+        .ToArray();
+}
+
+public class Startup(IConfiguration configuration)
+{
+    public IConfiguration Configuration { get; } = configuration;
+
+    // This method gets called by the runtime. Use this method to add services to the container.
+    public void ConfigureServices(IServiceCollection services)
     {
-        public const string ApiFullAccess = "Api.ReadWrite.All";
-        public const string ReadWeather = "Weather.Read";
-        public const string ReadLotsOfWeather = "Weather.Lots.Read";
+        services.AddMicrosoftIdentityWebApiAuthentication(Configuration)
+            .EnableTokenAcquisitionToCallDownstreamApi()
+            .AddDownstreamApi("SummaryApi", Configuration.GetSection("SummaryApi"))
+            .AddInMemoryTokenCaches();
 
-        public static string[] All => typeof(AppRoles)
-            .GetFields()
-            .Where(f => f.Name != nameof(All))
-            .Select(f => f.GetValue(null) as string)
-            .ToArray();
-    }
-
-    internal static class DelegatedPermissions
-    {
-        public const string ReadBasicWeather = "Weather.Read.Basic";
-        public const string ReadLotsOfWeather = "Weather.Read.Lots";
-        public const string ReadSpecialWeather = "Weather.Read.Special";
-
-        public static string[] All => typeof(DelegatedPermissions)
-            .GetFields()
-            .Where(f => f.Name != nameof(All))
-            .Select(f => f.GetValue(null) as string)
-            .ToArray();
-    }
-
-    public class Startup
-    {
-        public Startup(IConfiguration configuration)
+        services.AddAuthorization(options =>
         {
-            Configuration = configuration;
-        }
+            options.AddPolicy("RequireAnyRole",
+                policy => policy.RequireRole(AppRoles.All));
+        });
 
-        public IConfiguration Configuration { get; }
+        services.AddHttpClient();
 
-        // This method gets called by the runtime. Use this method to add services to the container.
-        public void ConfigureServices(IServiceCollection services)
+        services.AddControllers();
+        services.AddSwaggerGen(c =>
         {
-            services.AddMicrosoftIdentityWebApiAuthentication(Configuration)
-                    .EnableTokenAcquisitionToCallDownstreamApi()
-                    .AddDownstreamWebApi("SummaryApi", Configuration.GetSection("SummaryApi"))
-                        .AddInMemoryTokenCaches();
+            c.OperationFilter<AuthorizeOperationFilter>();
 
-            services.AddAuthorization(options =>
+            c.SwaggerDoc("v1", new OpenApiInfo { Title = "WeatherApi", Version = "v1" });
+
+            var azureAdTenantId = Configuration.GetValue<string>("AzureAd:TenantId");
+
+            var configurationUrl =
+                new Uri(
+                    $"https://login.microsoftonline.com/{azureAdTenantId}/v2.0/.well-known/openid-configuration");
+            var authorizationUrl =
+                new Uri(
+                    $"https://login.microsoftonline.com/{azureAdTenantId}/oauth2/v2.0/authorize");
+            var tokenUrl =
+                new Uri(
+                    $"https://login.microsoftonline.com/{azureAdTenantId}/oauth2/v2.0/token");
+
+            c.AddSecurityDefinition("OAuth2", new OpenApiSecurityScheme
             {
-                options.AddPolicy("RequireAnyRole",
-                    policy => policy.RequireRole(AppRoles.All));
-            });
-
-            services.AddHttpClient();
-
-            services.AddControllers();
-            services.AddSwaggerGen(c =>
-            {
-                c.OperationFilter<AuthorizeOperationFilter>();
-
-                c.SwaggerDoc("v1", new OpenApiInfo { Title = "WeatherApi", Version = "v1" });
-
-                var azureAdTenantId = Configuration.GetValue<string>("AzureAd:TenantId");
-
-                var configurationUrl =
-                    new Uri(
-                        $"https://login.microsoftonline.com/{azureAdTenantId}/v2.0/.well-known/openid-configuration");
-                var authorizationUrl =
-                    new Uri(
-                        $"https://login.microsoftonline.com/{azureAdTenantId}/oauth2/v2.0/authorize");
-                var tokenUrl =
-                    new Uri(
-                        $"https://login.microsoftonline.com/{azureAdTenantId}/oauth2/v2.0/token");
-
-                c.AddSecurityDefinition("OAuth2", new OpenApiSecurityScheme
+                Description = "Azure AD Authentication",
+                OpenIdConnectUrl = configurationUrl,
+                Type = SecuritySchemeType.OAuth2,
+                Flows = new OpenApiOAuthFlows
                 {
-                    Description = "Azure AD Authentication",
-                    OpenIdConnectUrl = configurationUrl,
-                    Type = SecuritySchemeType.OAuth2,
-                    Flows = new OpenApiOAuthFlows
+                    AuthorizationCode = new OpenApiOAuthFlow
                     {
-                        AuthorizationCode = new OpenApiOAuthFlow
-                        {
-                            AuthorizationUrl = authorizationUrl,
-                            TokenUrl = tokenUrl,
-                            Scopes = DelegatedPermissions.All.ToDictionary(p => $"api://{Configuration.GetValue<string>("AzureAd:ClientId")}/{p}")
-                        }
+                        AuthorizationUrl = authorizationUrl,
+                        TokenUrl = tokenUrl,
+                        Scopes = DelegatedPermissions.All.ToDictionary(p => $"api://{Configuration.GetValue<string>("AzureAd:ClientId")}/{p}")
                     }
-                });
+                }
             });
+        });
 
-            services.AddCors(options =>
-            {
-                options.AddDefaultPolicy(
-                    builder =>
-                    {
-                        builder.WithOrigins("http://localhost:3000")
-                            .AllowAnyHeader();
-                    });
-            });
-        }
-
-        // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+        services.AddCors(options =>
         {
-            if (env.IsDevelopment())
-            {
-                app.UseDeveloperExceptionPage();
-                app.UseSwagger();
-                app.UseSwaggerUI(c =>
+            options.AddDefaultPolicy(
+                builder =>
                 {
-                    c.SwaggerEndpoint("/swagger/v1/swagger.json", "WebApiAuthPlayground v1");
-                    c.OAuthClientId(Configuration.GetValue<string>("AzureAd:ClientId"));
-                    c.OAuthUsePkce();
+                    builder.WithOrigins("http://localhost:3000")
+                        .AllowAnyHeader();
                 });
-            }
+        });
+    }
 
-            app.UseHttpsRedirection();
-
-            app.UseRouting();
-
-            app.UseCors();
-
-            app.UseAuthentication();
-            app.UseAuthorization();
-
-            app.UseEndpoints(endpoints =>
+    // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
+    public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+    {
+        if (env.IsDevelopment())
+        {
+            app.UseDeveloperExceptionPage();
+            app.UseSwagger();
+            app.UseSwaggerUI(c =>
             {
-                endpoints.MapControllers();
+                c.SwaggerEndpoint("/swagger/v1/swagger.json", "WebApiAuthPlayground v1");
+                c.OAuthClientId(Configuration.GetValue<string>("AzureAd:ClientId"));
+                c.OAuthUsePkce();
             });
         }
+
+        app.UseHttpsRedirection();
+
+        app.UseRouting();
+
+        app.UseCors();
+
+        app.UseAuthentication();
+        app.UseAuthorization();
+
+        app.UseEndpoints(endpoints =>
+        {
+            endpoints.MapControllers();
+        });
     }
 }
